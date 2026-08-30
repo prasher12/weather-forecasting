@@ -1,6 +1,6 @@
 """
 Weather Forecasting Application
-Main entry point for the application
+Main entry point for the application with Render live deployment diagnostics
 """
 
 import os
@@ -18,6 +18,19 @@ app = Flask(__name__)
 
 # Get API key
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
+
+# --- RENDER DEPLOYMENT DIAGNOSTICS ---
+# This prints to your Render logs on startup so you know if your key loaded correctly
+print("==================================================")
+print("RENDER LIVE ENVIRONMENT DIAGNOSTICS")
+if not API_KEY:
+    print("❌ ERROR: 'OPENWEATHER_API_KEY' was not found in environment variables!")
+    print("👉 ACTION REQUIRED: Go to your Render Environment tab and add 'OPENWEATHER_API_KEY'")
+else:
+    # Safely print a masked version of the key to verify it exists without revealing it in logs
+    masked_key = API_KEY[:4] + "..." + API_KEY[-4:] if len(API_KEY) > 8 else "Loaded (Too Short)"
+    print(f"✅ SUCCESS: 'OPENWEATHER_API_KEY' loaded successfully. (Value: {masked_key})")
+print("==================================================")
 
 
 @app.route("/")
@@ -52,8 +65,11 @@ def get_weather(city):
                 "status": "success"
             })
         else:
+            print(f"❌ WEATHER API ERROR FOR CITY '{city}': Status Code {response.status_code}")
+            print(f"   Response Text: {response.text}")
             return jsonify({"status": "error", "message": "City not found"}), 404
     except Exception as e:
+        print(f"💥 WEATHER API EXCEPTION: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -89,8 +105,11 @@ def autocomplete():
             ]
             return jsonify(suggestions)
         else:
+            print(f"❌ AUTOCOMPLETE API ERROR FOR QUERY '{query}': Status Code {response.status_code}")
+            print(f"   Response Text: {response.text}")
             return jsonify([])
     except Exception as e:
+        print(f"💥 AUTOCOMPLETE API EXCEPTION: {str(e)}")
         return jsonify([])
 
 
@@ -128,20 +147,20 @@ def weather_by_coords():
                 "status": "success"
             })
         else:
+            print(f"❌ COORDS API ERROR (lat: {lat}, lon: {lon}): Status Code {response.status_code}")
+            print(f"   Response Text: {response.text}")
             return jsonify({"status": "error", "message": "Weather data not found"}), 404
     except Exception as e:
+        print(f"💥 COORDS API EXCEPTION: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/weather", methods=["GET", "POST"])
 def weather():
     """Serve weather page"""
-    # For GET requests, just serve the template
-    # The template will fetch data via JavaScript using URL parameters
     if request.method == "GET":
         return render_template("weather.html")
     
-    # Legacy POST endpoint - redirects to new API
     city = request.form.get("city")
     
     if not city:
@@ -171,13 +190,15 @@ def weather():
                 forecast=forecast_data
             )
         else:
+            print(f"❌ LEGACY WEATHER PAGE ERROR FOR '{city}': Status Code {response.status_code}")
+            print(f"   Response Text: {response.text}")
             return "City not found!", 404
     except Exception as e:
+        print(f"💥 LEGACY WEATHER PAGE EXCEPTION: {str(e)}")
         return f"Error: {str(e)}", 500
 
 
 if __name__ == "__main__":
-
     debug = os.getenv("DEBUG", "False") == "True"
     port = int(os.getenv("PORT", "8000"))
 
